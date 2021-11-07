@@ -1,24 +1,32 @@
 
+import torch
+import torch.nn.functional as F
 from lib.training.training import TrainingBase
 from lib.training.training_mixins import SaveModel, ReduceLR, VerboseLR
 from lib.base.dotdict import HDict
-import torch
+from lib.data.dataset import Dataset, RandomWindow
+from .scheme_mixins import AccuracyMetric
 
-class SwishNetTraining(ReduceLR,VerboseLR,SaveModel,TrainingBase):
+
+class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase):
     def get_default_config(self):
         config = super().get_default_config()
         config.update(
-            model_name          = 'swishnet',
+            model_name          = 'unnamed_model',
             dataset_path        = HDict.L('c:"/gpfs/u/home/DLTM/DLTMhssn/scratch/datasets/audioset-derived/audioset-derived.zip"'+
                                           ' if c.distributed else'+
-                                          ' r"G:\datasets\audioset-derived.zip"'),
+                                          ' "G:/datasets/audioset-derived.zip"'),
             dataset_name        = 'audioset',
             annotations_path    = 'data/train_test_splits/train_dataset.csv.zip',
             ytids_path          = 'data/train_test_splits/train_ytids_folded.json',
+            batch_size          = 128,
             train_folds         = [0,1,2,3],
             val_folds           = [4],
             save_path           = HDict.L('c:path.join(f"models/{c.dataset_name.lower()}",c.model_name)'),
-            width_multiplier    = 1.0,
+            model_width         = 16,
+            dropout_rate        = 0.,
+            window_width        = 200,
+            pad_value           = -16.,
         )
         return config
     
@@ -26,14 +34,20 @@ class SwishNetTraining(ReduceLR,VerboseLR,SaveModel,TrainingBase):
     def get_dataset_config(self):
         config = self.config
         dataset_config = dict(
-            dataset_path = config.dataset_path,
+            dataset_path     = config.dataset_path,
+            annotations_path = config.annotations_path,
+            ytids_path       = config.ytids_path,
+            transform_fn     = RandomWindow(window_size = config.window_width,
+                                            features    = ['log_mfb'],
+                                            pad_value   = config.pad_value),
         )
-        return dataset_config, None
+        return dataset_config, Dataset
     
     def get_model_config(self):
         config = self.config
         model_config = dict(
-            width_multiplier = config.width_multiplier,
+            model_width      = config.model_width,
+            dropout_rate     = config.dropout_rate,
         )
         return model_config, None
     
@@ -75,4 +89,7 @@ class SwishNetTraining(ReduceLR,VerboseLR,SaveModel,TrainingBase):
                 raise NotImplementedError
             self._base_model = model_class(**model_config).cuda()
             return self._base_model
+    
+    def calculate_loss(self, outputs, inputs):
+        return F.nll_loss(outputs, inputs['label'])
     
