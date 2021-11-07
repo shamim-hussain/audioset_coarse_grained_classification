@@ -8,13 +8,18 @@ from tqdm import tqdm
 
 class Dataset:
     def __init__(self, annotations_path, dataset_path, ytids_path,
+                 ytid_keys = None,
                  class_associations=(('speech',0),('music',1),('noise',2)),
                  transform_fn = None,
                  load_data=True):
         self.annotations = pd.read_csv(annotations_path).set_index('ytid')
         self.dataset_path = dataset_path
         with open(ytids_path, 'r') as f:
-            self.ytids = json.load(f)
+            ytids_content = json.load(f)
+        if ytid_keys is not None:
+            self.ytids = sum([ytids_content[key] for key in ytid_keys], [])
+        else:
+            self.ytids = ytids_content
         self.class_associations = dict(class_associations)
         self.reverse_class_associations = dict((v,k) for k,v in class_associations)
         self.transform_fn = transform_fn
