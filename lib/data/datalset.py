@@ -1,12 +1,15 @@
+
 import pandas as pd
 import numpy as np
 import json
 import zipfile
 from tqdm import tqdm
 
+
 class Dataset:
     def __init__(self, annotations_path, dataset_path, ytids_path,
                  class_associations=(('speech',0),('music',1),('noise',2)),
+                 transform_fn = None,
                  load_data=True):
         self.annotations = pd.read_csv(annotations_path).set_index('ytid')
         self.dataset_path = dataset_path
@@ -14,6 +17,7 @@ class Dataset:
             self.ytids = json.load(f)
         self.class_associations = dict(class_associations)
         self.reverse_class_associations = dict((v,k) for k,v in class_associations)
+        self.transform_fn = transform_fn
         
         if load_data:
             self.load_data()
@@ -26,19 +30,49 @@ class Dataset:
                 with zf.open(self.annotations.loc[ytid,'log_mfb_path']) as f:
                     data['log_mfb'] = np.load(f)
                 
-                self.data[ytid] = (data, self.class_associations[
-                                       self.annotations.loc[ytid,'plausible_superclass']])
+                data['label'] = self.class_associations[self.annotations.loc
+                                                        [ytid,'plausible_superclass']]
+                self.data[ytid] = data
     
     def __getitem__(self, index):
         ytid = self.ytids[index]
-        data_without_ytid, label = self.data[ytid]
+        data_without_ytid = self.data[ytid]
         data = {'ytid':ytid}
         data.update(data_without_ytid)
-        return data, label
+        if self.transform_fn is not None:
+            data = self.transform_fn(data)
+        return data
     
     def __len__(self):
         return len(self.data)
     
     
-    
 
+class RandomWindow:
+    def __init__(self, window_size, features, pad_value):
+        self.window_size = window_size
+        self.features = features
+        self.pad_value = pad_value
+        
+    def __call__(self, data):
+        data_out = data.copy()
+        
+        data_len = data_out[self.features[0]].shape[0]
+        
+        pad_size = max(0, self.window_size - data_len)
+        if pad_size > 0:
+            for feature in self.features:
+                data_out[feature] = np.pad(data_out[feature], [[pad_size,0]]+[[0, 0]]*(len(data[feature].shape)-1),
+                                        constant_values=self.pad_value)
+            data_len = data_len + pad_size
+            data_out['window'] = np.array([0, data_len], dtype=np.int32)
+        else:
+            start_idx = np.random.randint(0, data_len-self.window_size+1, dtype=np.int32)
+            end_idx = start_idx + self.window_size
+            
+            window = np.stack([start_idx, end_idx], axis=0)
+            data_out['window'] = window
+            
+            for feature in self.features:
+                data_out[feature] = data_out[feature][start_idx:end_idx]
+        return data_out
