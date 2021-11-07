@@ -26,7 +26,7 @@ def read_config_from_file(config_file):
 
 def save_config_to_file(config, config_file):
     with open(config_file, 'w') as fp:
-        return yaml.dump(config, fp, sort_keys=False, Dumper=yaml_Dumper)
+        return yaml.dump(config, fp, Dumper=yaml_Dumper)
 
 
 class StopTrainingException(Exception):
@@ -213,7 +213,7 @@ class TrainingBase:
             model_representation = repr(self.model),
         )
         with open(self.config.summary_path+'.txt', 'w') as fp:
-            yaml.dump(summary, fp, sort_keys=False, Dumper=yaml_Dumper)
+            yaml.dump(summary, fp, Dumper=yaml_Dumper)
     
     def save_checkpoint(self):
         if not self.is_main_rank: return
@@ -394,7 +394,7 @@ class TrainingBase:
         os.makedirs(self.config.log_path, exist_ok=True)
         history_file = os.path.join(self.config.log_path, 'history.yaml')
         with open(history_file, 'w') as fp:
-            yaml.dump(history, fp, sort_keys=False, Dumper=yaml_Dumper)
+            yaml.dump(history, fp, Dumper=yaml_Dumper)
 
     
     def train_model(self):
