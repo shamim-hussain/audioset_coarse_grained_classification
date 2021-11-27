@@ -14,7 +14,6 @@ class Dataset:
                  ytid_keys          =  None,
                  class_associations = (('speech',0),('music',1),('noise',2)),
                  transform_fn       =  None,
-                 load_data          = True,
                  include_ytid       = False):
         self.annotations = pd.read_csv(annotations_path).set_index('ytid')
         self.dataset_path = dataset_path
@@ -28,9 +27,6 @@ class Dataset:
         self.reverse_class_associations = dict((v,k) for k,v in class_associations)
         self.transform_fn = transform_fn
         self.include_ytid = include_ytid
-        
-        if load_data:
-            self.load_data()
     
     def load_data(self):
         self.data = {}
@@ -45,7 +41,11 @@ class Dataset:
                 self.data[ytid] = data
     
     def __getitem__(self, index):
-        ytid = self.ytids[index]
+        if isinstance(index, str):
+            ytid = index
+        else:
+            ytid = self.ytids[index]
+        
         data_without_ytid = self.data[ytid]
         if self.include_ytid:
             data = {'ytid': ytid}
@@ -65,14 +65,13 @@ class Dataset:
 class RandomWindowedDataset(Dataset):
     def __init__(self, 
                  window_size, 
-                 features, 
+                 windowed_features, 
                  pad_value, 
                  include_window=False,
                  **kwargs):
         super().__init__(**kwargs)
-        
         self.window_size = window_size
-        self.features = features
+        self.windowed_features = windowed_features
         self.pad_value = pad_value
         self.include_window = include_window
         
@@ -80,11 +79,11 @@ class RandomWindowedDataset(Dataset):
         data = super().__getitem__(index)
         data_out = data.copy()
         
-        data_len = data_out[self.features[0]].shape[0]
+        data_len = data_out[self.windowed_features[0]].shape[0]
         
         pad_size = max(0, self.window_size - data_len)
         if pad_size > 0:
-            for feature in self.features:
+            for feature in self.windowed_features:
                 data_out[feature] = np.pad(data_out[feature], [[pad_size,0]]+[[0, 0]]*(len(data[feature].shape)-1),
                                         constant_values=self.pad_value)
             data_len = data_len + pad_size
@@ -98,6 +97,67 @@ class RandomWindowedDataset(Dataset):
             if self.include_window:
                 data_out['window'] = window
             
-            for feature in self.features:
+            for feature in self.windowed_features:
                 data_out[feature] = data_out[feature][start_idx:end_idx]
         return data_out
+
+
+
+class StridedWindowedDataset(Dataset):
+    def __init__(self, 
+                 window_size, 
+                 window_stride, 
+                 windowed_features, 
+                 pad_value, 
+                 include_window=False,
+                 **kwargs):
+        super().__init__(**kwargs)
+        
+        self.window_size = window_size
+        self.window_stride = window_stride
+        self.windowed_features = windowed_features
+        self.pad_value = pad_value
+        self.include_window = include_window
+    
+    
+    def load_data(self):
+        super().load_data()
+        
+        windows = []
+        for ytid, data in self.data.items():
+            data_len = data[self.windowed_features[0]].shape[0]
+            
+            for i in range(0, data_len - self.window_size, self.window_stride):
+                windows.append((ytid, i))
+            
+            windows.append((ytid, max(data_len-self.window_size, 0)))
+        
+        self.windows = pd.DataFrame(windows, columns=['ytid', 'start'])
+    
+    def __getitem__(self, index):
+        ytid, start_idx = self.windows.iloc[index]
+        data = super().__getitem__(ytid)
+        data_out = data.copy()
+        
+        data_len = data_out[self.windowed_features[0]].shape[0]
+        
+        pad_size = max(0, self.window_size - data_len)
+        if pad_size > 0:
+            for feature in self.windowed_features:
+                data_out[feature] = np.pad(data_out[feature], [[pad_size,0]]+[[0, 0]]*(len(data[feature].shape)-1),
+                                        constant_values=self.pad_value)
+            if self.include_window:
+                data_out['window'] = np.array([0, data_len + pad_size], dtype=np.int32)
+        else:
+            end_idx = start_idx + self.window_size
+            if self.include_window:
+                data_out['window'] = np.array([start_idx, end_idx], dtype=np.int32)
+            
+            for feature in self.windowed_features:
+                data_out[feature] = data_out[feature][start_idx:end_idx]
+        return data_out
+
+    def __len__(self):
+        return len(self.windows)
+    
+

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from lib.training.training import TrainingBase
 from lib.training.training_mixins import SaveModel, ReduceLR, VerboseLR
 from lib.base.dotdict import HDict
-from lib.data.dataset import Dataset, RandomWindow
+from lib.data.dataset import StridedWindowedDataset
 from .scheme_mixins import AccuracyMetric
 
 
@@ -25,7 +25,8 @@ class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase)
             save_path           = HDict.L('c:path.join(f"models/{c.dataset_name.lower()}",c.model_name)'),
             model_width         = 16,
             dropout_rate        = 0.,
-            window_width        = 200,
+            window_size         = 200,
+            window_stride       = HDict.L('c:c.window_size//2'),
             pad_value           = -16.,
         )
         return config
@@ -34,14 +35,15 @@ class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase)
     def get_dataset_config(self):
         config = self.config
         dataset_config = dict(
-            dataset_path     = config.dataset_path,
-            annotations_path = config.annotations_path,
-            ytids_path       = config.ytids_path,
-            transform_fn     = RandomWindow(window_size = config.window_width,
-                                            features    = ['log_mfb'],
-                                            pad_value   = config.pad_value),
+            dataset_path      = config.dataset_path,
+            annotations_path  = config.annotations_path,
+            ytids_path        = config.ytids_path,
+            window_size       = config.window_size,
+            window_stride     = config.window_stride,
+            windowed_features = ['log_mfb'],
+            pad_value         = config.pad_value,
         )
-        return dataset_config, Dataset
+        return dataset_config, StridedWindowedDataset
     
     def get_model_config(self):
         config = self.config
@@ -63,6 +65,7 @@ class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase)
             self._train_dataset = dataset_class(**dataset_config,
                                                 ytid_keys=[str(k) for k in 
                                                            config.train_folds])
+            self._train_dataset.load_data()
             return self._train_dataset
     
     @property
@@ -77,6 +80,7 @@ class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase)
             self._val_dataset = dataset_class(**dataset_config,
                                               ytid_keys=[str(k) for k in 
                                                            config.val_folds])
+            self._val_dataset.load_data()
             return self._val_dataset
     
     @property
