@@ -62,14 +62,22 @@ class Dataset:
     
     
 
-class RandomWindow:
-    def __init__(self, window_size, features, pad_value, include_window=False):
+class RandomWindowedDataset(Dataset):
+    def __init__(self, 
+                 window_size, 
+                 features, 
+                 pad_value, 
+                 include_window=False,
+                 **kwargs):
+        super().__init__(**kwargs)
+        
         self.window_size = window_size
         self.features = features
         self.pad_value = pad_value
         self.include_window = include_window
         
-    def __call__(self, data):
+    def __getitem__(self, index):
+        data = super().__getitem__(index)
         data_out = data.copy()
         
         data_len = data_out[self.features[0]].shape[0]
