@@ -28,21 +28,26 @@ class Dataset:
         self.transform_fn = transform_fn
         self.include_ytid = include_ytid
     
-    def load_data(self):
+    def load_data(self, verbose=False):
         self.data = {}
         with zipfile.ZipFile(self.dataset_path, 'r') as zf:
-            for ytid in tqdm(self.ytids.copy(), desc='Loading data'):
-                data = {}
-                try:
-                    with zf.open(self.annotations.loc[ytid,'log_mfb_path']) as f:
-                        data['log_mfb'] = np.load(f)
-                    
-                    data['label'] = self.class_associations[self.annotations.loc
-                                                            [ytid,'plausible_superclass']]
-                    self.data[ytid] = data
-                except KeyError:
-                    print(f'Warning: Key {ytid} not found!')
-                    self.ytids.remove(ytid)
+            try:
+                ytid_iter = tqdm(self.ytids.copy(), desc='Loading data') \
+                                if verbose else self.ytids.copy()
+                for ytid in ytid_iter:
+                    data = {}
+                    try:
+                        with zf.open(self.annotations.loc[ytid,'log_mfb_path']) as f:
+                            data['log_mfb'] = np.load(f)
+                        
+                        data['label'] = self.class_associations[self.annotations.loc
+                                                                [ytid,'plausible_superclass']]
+                        self.data[ytid] = data
+                    except KeyError:
+                        if verbose: print(f'Warning: Key {ytid} not found!')
+                        self.ytids.remove(ytid)
+            finally:
+                if verbose: ytid_iter.close()
     
     def __getitem__(self, index):
         if isinstance(index, str):
@@ -124,8 +129,8 @@ class StridedWindowedDataset(Dataset):
         self.include_window = include_window
     
     
-    def load_data(self):
-        super().load_data()
+    def load_data(self, verbose=False):
+        super().load_data(verbose)
         
         windows = []
         for ytid, data in self.data.items():

@@ -13,7 +13,7 @@ class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase)
         config = super().get_default_config()
         config.update(
             model_name          = 'unnamed_model',
-            dataset_path        = HDict.L('c:"/gpfs/u/home/DLTM/DLTMhssn/scratch/datasets/audioset-derived/audioset-derived.zip"'+
+            dataset_path        = HDict.L('c:"/gpfs/u/home/DLTM/DLTMhssn/scratch/datasets/audioset-derived/audioset-derived-features.zip"'+
                                           ' if c.distributed else'+
                                           ' "G:/datasets/audioset-derived.zip"'),
             dataset_name        = 'audioset',
@@ -65,7 +65,7 @@ class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase)
             self._train_dataset = dataset_class(**dataset_config,
                                                 ytid_keys=[str(k) for k in 
                                                            config.train_folds])
-            self._train_dataset.load_data()
+            self._train_dataset.load_data(verbose=self.is_main_rank)
             return self._train_dataset
     
     @property
@@ -80,7 +80,7 @@ class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase)
             self._val_dataset = dataset_class(**dataset_config,
                                               ytid_keys=[str(k) for k in 
                                                            config.val_folds])
-            self._val_dataset.load_data()
+            self._val_dataset.load_data(verbose=self.is_main_rank)
             return self._val_dataset
     
     @property
