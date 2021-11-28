@@ -17,10 +17,10 @@ class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase)
                                           ' if c.distributed else'+
                                           ' "G:/datasets/audioset-derived.zip"'),
             dataset_name        = 'audioset',
-            annotations_path    = 'data/train_test_splits/train_dataset.csv.zip',
+            annotations_path    = 'data/annotations.csv.zip',
             ytids_path          = 'data/train_test_splits/train_ytids_folded.json',
             batch_size          = 128,
-            train_folds         = [0,1,2,3],
+            train_folds         = [0,1,2,3,-1],
             val_folds           = [4],
             save_path           = HDict.L('c:path.join(f"models/{c.dataset_name.lower()}",c.model_name)'),
             model_width         = 16,

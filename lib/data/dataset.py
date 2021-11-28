@@ -31,14 +31,18 @@ class Dataset:
     def load_data(self):
         self.data = {}
         with zipfile.ZipFile(self.dataset_path, 'r') as zf:
-            for ytid in tqdm(self.ytids, desc='Loading data'):
+            for ytid in tqdm(self.ytids.copy(), desc='Loading data'):
                 data = {}
-                with zf.open(self.annotations.loc[ytid,'log_mfb_path']) as f:
-                    data['log_mfb'] = np.load(f)
-                
-                data['label'] = self.class_associations[self.annotations.loc
-                                                        [ytid,'plausible_superclass']]
-                self.data[ytid] = data
+                try:
+                    with zf.open(self.annotations.loc[ytid,'log_mfb_path']) as f:
+                        data['log_mfb'] = np.load(f)
+                    
+                    data['label'] = self.class_associations[self.annotations.loc
+                                                            [ytid,'plausible_superclass']]
+                    self.data[ytid] = data
+                except KeyError:
+                    print(f'Warning: Key {ytid} not found!')
+                    self.ytids.remove(ytid)
     
     def __getitem__(self, index):
         if isinstance(index, str):
