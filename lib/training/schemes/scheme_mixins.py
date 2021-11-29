@@ -1,6 +1,7 @@
 
 import torch
 import numpy as np
+from lib.training.training import TrainingBase
 
 class AccuracyMetric:
     def initialize_metrics(self, logs, training):
@@ -33,3 +34,37 @@ class AccuracyMetric:
         vl = super().get_verbose_logs()
         vl.update(acc='.3%')
         return vl
+
+
+
+class CosineAnnealWarmRestart(TrainingBase):
+    def get_default_config(self):
+        config = super().get_default_config()
+        config.update(
+            min_lr = 1e-5,
+            anneal_epochs_0 = 1,
+            anneal_epochs_mult = 2,
+        )
+        return config
+    def on_batch_begin(self, i, logs, training):
+        super().on_batch_begin(i, logs, training)
+        if training:
+            start, period = 0, self.config.anneal_epochs_0
+            while self.state.current_epoch > start + period:
+                start += period + 1
+                period *= self.config.anneal_epochs_mult
+                
+            new_lr = self.config.min_lr + 0.5 * (self.config.max_lr - self.config.min_lr)\
+                                    * (1 + np.cos(np.pi * (self.state.current_epoch - start) / period))
+            for group in self.optimizer.param_groups:
+                group['lr'] = new_lr
+            logs['lr'] = float(new_lr)
+            logs['current_start'] = int(start)
+            logs['next_restart'] = int(start + period)
+            
+    def log_description(self, i, logs, training):
+        descriptions = super().log_description(i, logs, training)
+        if training:
+            descriptions.append(f'[WR:{logs["current_start"]+1}-{logs["next_restart"]+1}]')
+        return descriptions
+

@@ -5,10 +5,10 @@ from lib.training.training import TrainingBase
 from lib.training.training_mixins import SaveModel, ReduceLR, VerboseLR
 from lib.base.dotdict import HDict
 from lib.data.dataset import StridedWindowedDataset
-from .scheme_mixins import AccuracyMetric
+from .scheme_mixins import AccuracyMetric, CosineAnnealWarmRestart
 
 
-class AudiosetTraining(AccuracyMetric,ReduceLR,VerboseLR,SaveModel,TrainingBase):
+class AudiosetTraining(AccuracyMetric,CosineAnnealWarmRestart,VerboseLR,SaveModel,TrainingBase):#ReduceLR
     def get_default_config(self):
         config = super().get_default_config()
         config.update(
