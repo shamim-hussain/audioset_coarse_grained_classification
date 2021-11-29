@@ -4,6 +4,23 @@ import numpy as np
 import json
 import zipfile
 from tqdm import tqdm
+from multiprocessing import Pool
+
+
+def _process_init(dataset_path, log_mfb_paths):
+    globals()['_in_process_zipfile'] = zipfile.ZipFile(dataset_path, 'r')
+    globals()['_in_process_log_mfb_paths'] = log_mfb_paths
+
+def _process_load_data(ytid):
+    _in_process_zipfile = globals()['_in_process_zipfile']
+    _in_process_log_mfb_paths = globals()['_in_process_log_mfb_paths']
+    try:
+        with _in_process_zipfile.open(_in_process_log_mfb_paths[ytid]) as f:
+            log_mfb = np.load(f)
+        
+        return ytid, log_mfb
+    except KeyError:
+        return None
 
 
 class Dataset:
@@ -30,24 +47,24 @@ class Dataset:
     
     def load_data(self, verbose=False):
         self.data = {}
-        with zipfile.ZipFile(self.dataset_path, 'r') as zf:
+        with Pool(processes=6, initializer=_process_init, 
+                  initargs=(self.dataset_path, 
+                            self.annotations.log_mfb_path.to_dict())) as pool:
+            jobs = pool.imap_unordered(_process_load_data, self.ytids, chunksize=100)
+            if verbose: jobs = tqdm(jobs, total=len(self.ytids))
             try:
-                ytid_iter = tqdm(self.ytids.copy(), desc='Loading data') \
-                                if verbose else self.ytids.copy()
-                for ytid in ytid_iter:
-                    data = {}
-                    try:
-                        with zf.open(self.annotations.loc[ytid,'log_mfb_path']) as f:
-                            data['log_mfb'] = np.load(f)
-                        
-                        data['label'] = self.class_associations[self.annotations.loc
-                                                                [ytid,'plausible_superclass']]
-                        self.data[ytid] = data
-                    except KeyError:
-                        if verbose: print(f'Warning: Key {ytid} not found!')
+                for outputs in jobs:
+                    if outputs is not None:
+                        ytid, log_mfb = outputs
+                        self.data[ytid] = dict(
+                            log_mfb = log_mfb,
+                            label = self.class_associations[self.annotations.loc
+                                                                [ytid,'plausible_superclass']])
+                    else:
+                        if verbose: print(f'Warning: YTID {ytid} not found!')
                         self.ytids.remove(ytid)
             finally:
-                if verbose: ytid_iter.close()
+                if verbose: jobs.close()
     
     def __getitem__(self, index):
         if isinstance(index, str):
