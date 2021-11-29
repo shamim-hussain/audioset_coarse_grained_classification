@@ -2,13 +2,13 @@
 import torch
 import torch.nn.functional as F
 from lib.training.training import TrainingBase
-from lib.training.training_mixins import SaveModel, ReduceLR, VerboseLR
+from lib.training.training_mixins import SaveModel, VerboseLR
 from lib.base.dotdict import HDict
 from lib.data.dataset import StridedWindowedDataset
 from .scheme_mixins import AccuracyMetric, CosineAnnealWarmRestart
 
 
-class AudiosetTraining(AccuracyMetric,CosineAnnealWarmRestart,VerboseLR,SaveModel,TrainingBase):#ReduceLR
+class AudiosetTraining(AccuracyMetric,VerboseLR,SaveModel,TrainingBase):
     def get_default_config(self):
         config = super().get_default_config()
         config.update(

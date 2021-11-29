@@ -3,7 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import random
 
+from ..scheme_mixins import CosineAnnealWarmRestart
 from ..scheme_base import AudiosetTraining
+
 
 class SwishNetV2(nn.Module):
     def __init__(self, 
@@ -126,9 +128,11 @@ class SwishNetV2(nn.Module):
         x = self.final_linear(x)
         x = F.log_softmax(x, dim=1)
         return x
-        
 
-class SwishNetV2Training(AudiosetTraining):
+
+
+
+class SwishNetV2Training(CosineAnnealWarmRestart,AudiosetTraining):
     def get_default_config(self):
         config = super().get_default_config()
         config.update(
@@ -143,7 +147,7 @@ class SwishNetV2Training(AudiosetTraining):
             base_width   = self.config.base_width,
         )
         return model_config, SwishNetV2
-    
 
-    
-    
+
+
+
