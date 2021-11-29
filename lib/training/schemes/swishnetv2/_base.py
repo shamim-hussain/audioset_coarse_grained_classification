@@ -138,6 +138,8 @@ class SwishNetV2Training(CosineAnnealWarmRestart,AudiosetTraining):
         config.update(
             model_name   = 'swishnetv2',
             base_width   = 20,
+            model_width  = 16,
+            dropout_rate = 0.,
         )
         return config
     
@@ -145,6 +147,8 @@ class SwishNetV2Training(CosineAnnealWarmRestart,AudiosetTraining):
         model_config, _ = super().get_model_config()
         model_config.update(
             base_width   = self.config.base_width,
+            model_width  = self.config.model_width,
+            dropout_rate = self.config.dropout_rate,
         )
         return model_config, SwishNetV2
 

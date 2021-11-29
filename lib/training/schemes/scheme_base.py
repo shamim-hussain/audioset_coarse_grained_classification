@@ -5,7 +5,7 @@ from lib.training.training import TrainingBase
 from lib.training.training_mixins import SaveModel, VerboseLR
 from lib.base.dotdict import HDict
 from lib.data.dataset import StridedWindowedDataset
-from .scheme_mixins import AccuracyMetric, CosineAnnealWarmRestart
+from .scheme_mixins import AccuracyMetric
 
 
 class AudiosetTraining(AccuracyMetric,VerboseLR,SaveModel,TrainingBase):
@@ -23,8 +23,6 @@ class AudiosetTraining(AccuracyMetric,VerboseLR,SaveModel,TrainingBase):
             train_folds         = [0,1,2,3,-1],
             val_folds           = [4],
             save_path           = HDict.L('c:path.join(f"models/{c.dataset_name.lower()}",c.model_name)'),
-            model_width         = 16,
-            dropout_rate        = 0.,
             window_size         = 200,
             window_stride       = HDict.L('c:c.window_size//2'),
             pad_value           = -16.,
@@ -46,12 +44,7 @@ class AudiosetTraining(AccuracyMetric,VerboseLR,SaveModel,TrainingBase):
         return dataset_config, StridedWindowedDataset
     
     def get_model_config(self):
-        config = self.config
-        model_config = dict(
-            model_width      = config.model_width,
-            dropout_rate     = config.dropout_rate,
-        )
-        return model_config, None
+        return {}, None
     
     @property
     def train_dataset(self):
