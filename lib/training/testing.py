@@ -32,20 +32,20 @@ class TestingBase(TrainingBase):
         except AttributeError:
             if not self.is_distributed:
                 self._train_pred_dataloader = DataLoader(dataset=self.train_dataset,
-                                                  batch_size=self.config.batch_size,
-                                                  shuffle=False,
-                                                  drop_last=False,
-                                                  collate_fn=self.collate_fn,
-                                                  pin_memory=True)
+                                                         batch_size=self.config.batch_size,
+                                                         shuffle=False,
+                                                         drop_last=False,
+                                                         collate_fn=self.collate_fn,
+                                                         pin_memory=True)
             else:
                 sampler = DistributedTestDataSampler(data_source=self.train_dataset,
-                                                 batch_size=self.config.batch_size,
-                                                 rank=self.ddp_rank,
-                                                 world_size=self.ddp_world_size)
+                                                     batch_size=self.config.batch_size,
+                                                     rank=self.ddp_rank,
+                                                     world_size=self.ddp_world_size)
                 self._train_pred_dataloader = DataLoader(dataset=self.train_dataset,
-                                                  collate_fn=self.collate_fn,
-                                                  batch_sampler=sampler,
-                                                  pin_memory=True)
+                                                         collate_fn=self.collate_fn,
+                                                         batch_sampler=sampler,
+                                                         pin_memory=True)
             return self._train_pred_dataloader
     
     @property
@@ -55,20 +55,20 @@ class TestingBase(TrainingBase):
         except AttributeError:
             if not self.is_distributed:
                 self._test_dataloader = DataLoader(dataset=self.test_dataset,
-                                                  batch_size=self.config.batch_size,
-                                                  shuffle=False,
-                                                  drop_last=False,
-                                                  collate_fn=self.collate_fn,
-                                                  pin_memory=True)
+                                                   batch_size=self.config.batch_size,
+                                                   shuffle=False,
+                                                   drop_last=False,
+                                                   collate_fn=self.collate_fn,
+                                                   pin_memory=True)
             else:
                 sampler = DistributedTestDataSampler(data_source=self.test_dataset,
-                                                 batch_size=self.config.batch_size,
-                                                 rank=self.ddp_rank,
-                                                 world_size=self.ddp_world_size)
+                                                     batch_size=self.config.batch_size,
+                                                     rank=self.ddp_rank,
+                                                     world_size=self.ddp_world_size)
                 self._test_dataloader = DataLoader(dataset=self.test_dataset,
-                                                  collate_fn=self.collate_fn,
-                                                  batch_sampler=sampler,
-                                                  pin_memory=True)
+                                                   collate_fn=self.collate_fn,
+                                                   batch_sampler=sampler,
+                                                   pin_memory=True)
             return self._test_dataloader
     
     
@@ -134,8 +134,8 @@ class TestingBase(TrainingBase):
     
     def save_predictions(self, dataset_name, predictions):
         os.makedirs(self.config.predictions_path, exist_ok=True)
-        predictions_file = os.path.join(self.config.predictions_path, f'{dataset_name}.npy')
-        np.save(predictions_file, predictions)
+        predictions_file = os.path.join(self.config.predictions_path, f'{dataset_name}.pt')
+        torch.save(predictions, predictions_file)
         print(f'Saved predictions to {predictions_file}')
     
     def predict_and_save(self):
@@ -184,7 +184,7 @@ class TestingBase(TrainingBase):
         else:
             raise ValueError(f'Unknown dataset name: {dataset_name}')
     
-    def evaluate_on(dataset_name, dataset, predictions):
+    def evaluate_on(self, dataset_name, dataset, predictions):
         raise NotImplementedError()
     
     def evaluate_and_save(self):
@@ -196,7 +196,7 @@ class TestingBase(TrainingBase):
         
         for dataset_name in self.config.evaluate_on:
             dataset = self.get_dataset(dataset_name)
-            predictions = np.load(os.path.join(self.config.predictions_path, f'{dataset_name}.npy'))
+            predictions = torch.load(os.path.join(self.config.predictions_path, f'{dataset_name}.pt'))
             dataset_results = self.evaluate_on(dataset_name, dataset, predictions)
 
             for k,v in dataset_results.items():
