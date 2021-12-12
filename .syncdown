@@ -1,0 +1,1 @@
+rsync -auvP -e 'ssh -p 2222' DLTMhssn@localhost:~/scratch/projects/audioset_coarse_grained_classification/models/audioset/ models/final_results/
